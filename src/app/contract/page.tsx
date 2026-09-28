@@ -18,6 +18,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/AuthContext";
 import { useMembership } from "@/lib/useMembership";
 import { createBackendIssue } from "@/lib/github";
+import { Avatar } from "@/components/Avatar";
 
 type Status = "pending" | "approved" | "rejected";
 
@@ -38,6 +39,7 @@ type ContractRequest = {
   status: Status;
   authorUid: string;
   authorName: string;
+  authorPhoto?: string | null;
   authorRole: string;
   reviewerName?: string;
   reviewNote?: string;
@@ -58,7 +60,7 @@ function fmt(ts: Timestamp | null | undefined) {
 }
 
 export default function ContractPage() {
-  const { user } = useAuth();
+  const { user, githubUsername } = useAuth();
   const { role, isMember } = useMembership();
   const [contracts, setContracts] = useState<ContractRequest[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -114,6 +116,8 @@ export default function ContractPage() {
       .map((s) => s.trim())
       .filter(Boolean);
 
+    const displayName = githubUsername ?? user.displayName ?? user.email ?? "unknown";
+
     if (editingId) {
       // 반려된 요청을 수정해 재제출 (작성자 본인만)
       await updateDoc(doc(db, "contracts", editingId), {
@@ -127,7 +131,7 @@ export default function ContractPage() {
         history: arrayUnion({
           status: "pending",
           note: "반려 사유 반영 후 재제출",
-          by: user.displayName ?? user.email ?? "unknown",
+          by: displayName,
           at: Timestamp.now(),
         }),
       });
@@ -140,11 +144,12 @@ export default function ContractPage() {
         affectedScreens,
         status: "pending",
         authorUid: user.uid,
-        authorName: user.displayName ?? user.email ?? "unknown",
+        authorName: displayName,
+        authorPhoto: user.photoURL ?? null,
         authorRole: role,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        history: [{ status: "pending", note: "요청 작성", by: user.displayName ?? user.email ?? "unknown", at: Timestamp.now() }],
+        history: [{ status: "pending", note: "요청 작성", by: displayName, at: Timestamp.now() }],
       });
     }
 
@@ -162,6 +167,8 @@ export default function ContractPage() {
     setBusy(true);
     setIssueNotice(null);
 
+    const displayName = githubUsername ?? user.displayName ?? user.email ?? "unknown";
+
     let backendIssueUrl: string | undefined;
     if (next === "approved") {
       const token =
@@ -171,7 +178,7 @@ export default function ContractPage() {
           const issue = await createBackendIssue(
             token,
             `[API 계약] ${selected.title}`,
-            `**요청 엔드포인트**: \`${selected.method} ${selected.endpoint}\`\n\n**내용**\n${selected.description}\n\n**영향받는 화면**: ${selected.affectedScreens.join(", ") || "-"}\n\n**요청자**: ${selected.authorName} (${selected.authorRole})\n**승인자**: ${user.displayName ?? user.email}\n\n---\nLinkU 대시보드 \`/contract\`에서 자동 생성됨.`
+            `**요청 엔드포인트**: \`${selected.method} ${selected.endpoint}\`\n\n**내용**\n${selected.description}\n\n**영향받는 화면**: ${selected.affectedScreens.join(", ") || "-"}\n\n**요청자**: ${selected.authorName} (${selected.authorRole})\n**승인자**: ${displayName}\n\n---\nLinkU 대시보드 \`/contract\`에서 자동 생성됨.`
           );
           backendIssueUrl = issue.html_url;
         } catch (err) {
@@ -186,14 +193,14 @@ export default function ContractPage() {
 
     await updateDoc(doc(db, "contracts", selected.id), {
       status: next,
-      reviewerName: user.displayName ?? user.email,
+      reviewerName: displayName,
       reviewNote: reviewNote.trim(),
       updatedAt: serverTimestamp(),
       ...(backendIssueUrl ? { backendIssueUrl } : {}),
       history: arrayUnion({
         status: next,
         note: reviewNote.trim(),
-        by: user.displayName ?? user.email ?? "unknown",
+        by: displayName,
         at: Timestamp.now(),
       }),
     });
@@ -238,7 +245,8 @@ export default function ContractPage() {
               }}
             >
               <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.4 }}>{c.title}</div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-secondary)", marginTop: 8 }}>
+                <Avatar src={c.authorPhoto} name={c.authorName} size={16} />
                 {c.authorName}({c.authorRole}) · {fmt(c.createdAt)}
               </div>
               <span style={{ display: "inline-block", marginTop: 8, fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 6, background: statusMeta[c.status].bg, color: statusMeta[c.status].text }}>
@@ -312,7 +320,10 @@ export default function ContractPage() {
               <div style={{ display: "flex", gap: 28, padding: 16, background: "rgba(255,255,255,0.03)", borderRadius: 12 }}>
                 <div>
                   <div style={{ fontSize: 11, color: "var(--text-tertiary)", fontWeight: 700 }}>작성자</div>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>{selected.authorName} ({selected.authorRole})</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700 }}>
+                    <Avatar src={selected.authorPhoto} name={selected.authorName} size={18} />
+                    {selected.authorName} ({selected.authorRole})
+                  </div>
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: "var(--text-tertiary)", fontWeight: 700 }}>작성일</div>

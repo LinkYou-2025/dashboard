@@ -1,24 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
+import { useMembership } from "@/lib/useMembership";
+import { Avatar } from "@/components/Avatar";
 
 export default function Home() {
-  const { user, loading, signIn, signOut } = useAuth();
-  const [isMember, setIsMember] = useState(false);
+  const { user, loading, githubUsername, signIn, signOut } = useAuth();
+  const { role, isMember } = useMembership();
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (!user) {
-      setIsMember(false);
-      return;
-    }
-    getDoc(doc(db, "members", user.uid)).then((snap) => {
-      setIsMember(snap.exists());
-    });
-  }, [user]);
+  const name = githubUsername ?? user?.displayName ?? user?.email ?? "";
+
+  const copyUid = async () => {
+    if (!user) return;
+    await navigator.clipboard.writeText(user.uid);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   return (
     <div style={{ minHeight: "100vh", padding: "24px 32px" }}>
@@ -62,11 +62,10 @@ export default function Home() {
                 color: isMember ? "var(--positive)" : "var(--text-secondary)",
               }}
             >
-              {isMember ? "팀원" : "구경 모드 (권한 없음)"}
+              {isMember ? role : "구경 모드 (권한 없음)"}
             </span>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>
-              {user.displayName ?? user.email}
-            </span>
+            <Avatar src={user.photoURL} name={name} size={26} />
+            <span style={{ fontSize: 13, fontWeight: 600 }}>{name}</span>
             <button
               onClick={() => signOut()}
               style={{
@@ -106,6 +105,36 @@ export default function Home() {
           로그인 없이도 스펙 현황을 볼 수 있습니다. LinkYou-2025 팀원으로
           등록되면 스펙 업로드·승인 등 쓰기 권한이 열립니다.
         </p>
+
+        {user && !isMember && (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid var(--border)",
+              background: "var(--surface)",
+              marginBottom: 20,
+              fontSize: 12,
+              color: "var(--text-secondary)",
+            }}
+          >
+            아직 팀원 명단에 없어요. 이 uid를 프로젝트 소유자에게 전달하면
+            Firestore <code style={{ color: "var(--text)" }}>members</code> 컬렉션에 등록해줄 수 있어요.
+            <code style={{ background: "rgba(255,255,255,0.06)", padding: "2px 8px", borderRadius: 6, color: "var(--text)" }}>
+              {user.uid}
+            </code>
+            <button
+              onClick={copyUid}
+              style={{ all: "unset", cursor: "pointer", fontWeight: 700, color: "var(--accent-blue)" }}
+            >
+              {copied ? "복사됨!" : "복사"}
+            </button>
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: 10 }}>
           <Link
             href="/prd"

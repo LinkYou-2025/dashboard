@@ -16,6 +16,7 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/AuthContext";
 import { useMembership } from "@/lib/useMembership";
+import { Avatar } from "@/components/Avatar";
 import {
   confirmations,
   linkedSpecs,
@@ -37,6 +38,7 @@ type Comment = {
   id: string;
   body: string;
   author: string;
+  authorPhoto: string | null;
   role: string | null;
   createdAt: Timestamp | null;
 };
@@ -65,7 +67,7 @@ function CommentIcon() {
 }
 
 export default function PRDPage() {
-  const { user } = useAuth();
+  const { user, githubUsername } = useAuth();
   const { role, isMember } = useMembership();
   const [tab, setTab] = useState<Tab>("문서");
   const [comments, setComments] = useState<Comment[]>([]);
@@ -85,6 +87,7 @@ export default function PRDPage() {
           id: d.id,
           body: d.data().body,
           author: d.data().author,
+          authorPhoto: d.data().authorPhoto ?? null,
           role: d.data().role ?? null,
           createdAt: d.data().createdAt ?? null,
         }))
@@ -129,7 +132,8 @@ export default function PRDPage() {
     setPosting(true);
     await addDoc(collection(db, "prd", "main", "comments"), {
       body: draft.trim(),
-      author: user.displayName ?? user.email,
+      author: githubUsername ?? user.displayName ?? user.email,
+      authorPhoto: user.photoURL ?? null,
       role,
       createdAt: serverTimestamp(),
     });
@@ -386,6 +390,7 @@ export default function PRDPage() {
               {comments.map((c) => (
                 <div key={c.id} style={{ padding: "12px 14px", borderRadius: 12, background: "var(--surface)", border: "1px solid var(--border)", boxSizing: "border-box" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <Avatar src={c.authorPhoto} name={c.author} size={20} />
                     <span style={{ fontSize: 12, fontWeight: 700 }}>{c.author}</span>
                     {c.role && (
                       <span
