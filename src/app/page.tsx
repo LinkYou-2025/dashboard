@@ -106,22 +106,40 @@ export default function Home() {
           로그인 없이도 스펙 현황을 볼 수 있습니다. LinkYou-2025 팀원으로
           등록되면 스펙 업로드·승인 등 쓰기 권한이 열립니다.
         </p>
-        <Link
-          href="/prd"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 13,
-            fontWeight: 700,
-            padding: "8px 16px",
-            borderRadius: 8,
-            background: "var(--gradient)",
-            color: "#fff",
-          }}
-        >
-          PRD 문서 보기 →
-        </Link>
+        <div style={{ display: "flex", gap: 10 }}>
+          <Link
+            href="/prd"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              fontWeight: 700,
+              padding: "8px 16px",
+              borderRadius: 8,
+              background: "var(--gradient)",
+              color: "#fff",
+            }}
+          >
+            PRD 문서 보기 →
+          </Link>
+          <Link
+            href="/contract"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              fontWeight: 700,
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              color: "var(--text-secondary)",
+            }}
+          >
+            API 계약 요청 →
+          </Link>
+        </div>
       </main>
     </div>
   );
