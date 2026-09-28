@@ -19,6 +19,9 @@ import { useAuth } from "@/lib/AuthContext";
 import { useMembership } from "@/lib/useMembership";
 import { createBackendIssue } from "@/lib/github";
 import { Avatar } from "@/components/Avatar";
+import { notifyDiscord } from "@/lib/discord";
+
+const BACKEND_HANDLES = ["hyorim-jo", "JiwonLee42", "oculo0204"];
 
 type Status = "pending" | "approved" | "rejected";
 
@@ -151,6 +154,14 @@ export default function ContractPage() {
         updatedAt: serverTimestamp(),
         history: [{ status: "pending", note: "요청 작성", by: displayName, at: Timestamp.now() }],
       });
+      notifyDiscord({
+        event: "contract_created",
+        title: `${displayName}(${role}) → 백엔드: ${form.title.trim()}`,
+        description: `${form.method} ${form.endpoint.trim()}\n\n${form.description.trim()}`,
+        url: typeof window !== "undefined" ? window.location.href : undefined,
+        mentions: BACKEND_HANDLES,
+        author: displayName,
+      });
     }
 
     setBusy(false);
@@ -203,6 +214,15 @@ export default function ContractPage() {
         by: displayName,
         at: Timestamp.now(),
       }),
+    });
+
+    notifyDiscord({
+      event: next === "approved" ? "contract_approved" : "contract_rejected",
+      title: `${displayName}(백엔드) → ${selected.authorName}: ${selected.title}`,
+      description: reviewNote.trim() || (next === "approved" ? "승인됨" : "반려됨"),
+      url: backendIssueUrl ?? (typeof window !== "undefined" ? window.location.href : undefined),
+      mentions: [selected.authorName],
+      author: displayName,
     });
 
     setReviewNote("");

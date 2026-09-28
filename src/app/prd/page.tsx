@@ -17,11 +17,14 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/AuthContext";
 import { useMembership } from "@/lib/useMembership";
 import { Avatar } from "@/components/Avatar";
+import { extractMentions, notifyDiscord, TEAM_HANDLES } from "@/lib/discord";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   confirmations,
   linkedSpecs,
+  prdMarkdown,
   prdMeta,
-  prdSections,
   prdVersions,
   statusColors,
 } from "@/lib/prdContent";
@@ -130,12 +133,22 @@ export default function PRDPage() {
     e.preventDefault();
     if (!draft.trim() || !user || !isMember) return;
     setPosting(true);
+    const author = githubUsername ?? user.displayName ?? user.email ?? "unknown";
     await addDoc(collection(db, "prd", "main", "comments"), {
       body: draft.trim(),
-      author: githubUsername ?? user.displayName ?? user.email,
+      author,
       authorPhoto: user.photoURL ?? null,
       role,
       createdAt: serverTimestamp(),
+    });
+    const mentions = extractMentions(draft);
+    notifyDiscord({
+      event: "prd_comment",
+      title: `${author}님이 PRD에 댓글을 남겼어요`,
+      description: draft.trim(),
+      url: typeof window !== "undefined" ? window.location.href : undefined,
+      mentions,
+      author,
     });
     setDraft("");
     setPosting(false);
@@ -214,13 +227,28 @@ export default function PRDPage() {
               <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 700 }}>최종 수정일</span>
               <span style={{ fontSize: 12 }}>{prdMeta.updatedAt} · {prdMeta.updatedBy}</span>
             </div>
-            {prdSections.map((s) => (
-              <div key={s.heading} style={{ marginBottom: 18 }}>
-                <h2 style={{ margin: "0 0 10px", fontSize: 20, fontWeight: 800 }}>{s.heading}</h2>
-                <p style={{ fontSize: 13, lineHeight: 1.8, color: "#D7D9E4", margin: 0 }}>{s.body}</p>
-              </div>
-            ))}
-            <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>전문은 다운로드하거나 연결된 스펙에서 확인하세요.</p>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                h2: (p) => <h2 style={{ margin: "26px 0 10px", fontSize: 19, fontWeight: 800 }} {...p} />,
+                h3: (p) => <h3 style={{ margin: "20px 0 8px", fontSize: 15, fontWeight: 800, color: "var(--text-secondary)" }} {...p} />,
+                p: (p) => <p style={{ fontSize: 13, lineHeight: 1.8, color: "#D7D9E4", margin: "0 0 10px" }} {...p} />,
+                strong: (p) => <strong style={{ color: "var(--text)" }} {...p} />,
+                ul: (p) => <ul style={{ margin: "0 0 12px", paddingLeft: 20, fontSize: 13, lineHeight: 1.8, color: "#D7D9E4" }} {...p} />,
+                li: (p) => <li style={{ marginBottom: 4 }} {...p} />,
+                blockquote: (p) => <blockquote style={{ margin: "0 0 12px", padding: "8px 14px", borderLeft: "3px solid var(--accent-blue)", background: "rgba(44,111,255,0.08)", fontSize: 12, color: "var(--text-secondary)" }} {...p} />,
+                code: (p) => <code style={{ background: "rgba(255,255,255,0.06)", padding: "1px 6px", borderRadius: 4, fontSize: 12, fontFamily: "ui-monospace, monospace" }} {...p} />,
+                table: (p) => (
+                  <div style={{ overflowX: "auto", marginBottom: 14 }}>
+                    <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }} {...p} />
+                  </div>
+                ),
+                th: (p) => <th style={{ textAlign: "left", padding: "8px 10px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)", fontWeight: 700, whiteSpace: "nowrap" }} {...p} />,
+                td: (p) => <td style={{ padding: "8px 10px", borderBottom: "1px solid var(--border)", color: "#D7D9E4", verticalAlign: "top" }} {...p} />,
+              }}
+            >
+              {prdMarkdown}
+            </ReactMarkdown>
           </div>
         )}
 
@@ -407,11 +435,33 @@ export default function PRDPage() {
                       {c.createdAt ? c.createdAt.toDate().toLocaleDateString("ko-KR") : "방금"}
                     </span>
                   </div>
-                  <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>{c.body}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                    {c.body.split(/(@[a-zA-Z0-9_-]+)/g).map((part, i) =>
+                      part.startsWith("@") && TEAM_HANDLES.includes(part.slice(1)) ? (
+                        <span key={i} style={{ color: "var(--accent-blue)", fontWeight: 700 }}>{part}</span>
+                      ) : (
+                        <span key={i}>{part}</span>
+                      )
+                    )}
+                  </p>
                 </div>
               ))}
             </div>
             <form onSubmit={postComment} style={{ position: "relative" }}>
+              {isMember && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                  {TEAM_HANDLES.map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => setDraft((d) => `${d}${d.endsWith(" ") || d === "" ? "" : " "}@${h} `)}
+                      style={{ all: "unset", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 12, border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                    >
+                      @{h}
+                    </button>
+                  ))}
+                </div>
+              )}
               <label htmlFor="prd-comment" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>
                 PRD에 대한 의견
               </label>

@@ -1,0 +1,6 @@
+name = "linku-discord-relay"
+main = "src/index.ts"
+compatibility_date = "2026-09-28"
+
+[vars]
+ALLOWED_ORIGIN = "https://linkyou-2025.github.io"
