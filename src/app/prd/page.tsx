@@ -5,10 +5,12 @@ import Link from "next/link";
 import {
   addDoc,
   collection,
+  doc,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -23,7 +25,13 @@ import {
   statusColors,
 } from "@/lib/prdContent";
 
-type Tab = "문서" | "버전 이력" | "연결된 스펙";
+type Tab = "문서" | "버전 이력" | "연결된 스펙" | "구현 현황";
+
+type ImplStatus = {
+  markdown: string;
+  updatedAt: Timestamp | null;
+  updatedBy: string | null;
+};
 
 type Comment = {
   id: string;
@@ -64,6 +72,11 @@ export default function PRDPage() {
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
 
+  const [implStatus, setImplStatus] = useState<ImplStatus | null>(null);
+  const [implEditing, setImplEditing] = useState(false);
+  const [implDraft, setImplDraft] = useState("");
+  const [implSaving, setImplSaving] = useState(false);
+
   useEffect(() => {
     const q = query(collection(db, "prd", "main", "comments"), orderBy("createdAt", "asc"));
     return onSnapshot(q, (snap) => {
@@ -79,6 +92,37 @@ export default function PRDPage() {
     });
   }, []);
 
+  useEffect(() => {
+    return onSnapshot(doc(db, "implementationStatus", "main"), (snap) => {
+      if (snap.exists()) {
+        setImplStatus({
+          markdown: snap.data().markdown ?? "",
+          updatedAt: snap.data().updatedAt ?? null,
+          updatedBy: snap.data().updatedBy ?? null,
+        });
+      } else {
+        setImplStatus(null);
+      }
+    });
+  }, []);
+
+  const startImplEdit = () => {
+    setImplDraft(implStatus?.markdown ?? "");
+    setImplEditing(true);
+  };
+
+  const saveImplStatus = async () => {
+    if (!user || !isMember) return;
+    setImplSaving(true);
+    await setDoc(doc(db, "implementationStatus", "main"), {
+      markdown: implDraft,
+      updatedAt: serverTimestamp(),
+      updatedBy: user.displayName ?? user.email,
+    });
+    setImplSaving(false);
+    setImplEditing(false);
+  };
+
   const postComment = async (e: FormEvent) => {
     e.preventDefault();
     if (!draft.trim() || !user || !isMember) return;
@@ -93,7 +137,7 @@ export default function PRDPage() {
     setPosting(false);
   };
 
-  const tabs: Tab[] = ["문서", "버전 이력", "연결된 스펙"];
+  const tabs: Tab[] = ["문서", "버전 이력", "연결된 스펙", "구현 현황"];
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
@@ -258,6 +302,75 @@ export default function PRDPage() {
                 </span>
               </div>
             ))}
+          </div>
+        )}
+
+        {tab === "구현 현황" && (
+          <div style={{ flexGrow: 1, overflowY: "auto" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-secondary)" }}>
+                  프론트(LinkU_Android)·백엔드(LinkU_backend) 레포 기준 실제 구현 현황
+                </div>
+                {implStatus?.updatedAt && (
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 2 }}>
+                    최종 갱신 {implStatus.updatedAt.toDate().toLocaleString("ko-KR")} · {implStatus.updatedBy}
+                  </div>
+                )}
+              </div>
+              {isMember && !implEditing && (
+                <button
+                  onClick={startImplEdit}
+                  style={{ all: "unset", cursor: "pointer", fontSize: 12, fontWeight: 700, border: "1px solid var(--border)", borderRadius: 8, padding: "7px 14px", color: "var(--text-secondary)" }}
+                >
+                  {implStatus ? "붙여넣기로 갱신" : "구현 현황 문서 붙여넣기"}
+                </button>
+              )}
+            </div>
+
+            {implEditing ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <label htmlFor="impl-md" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>
+                  구현 현황 마크다운
+                </label>
+                <textarea
+                  id="impl-md"
+                  rows={22}
+                  value={implDraft}
+                  onChange={(e) => setImplDraft(e.target.value)}
+                  placeholder="Codex 등으로 생성한 구현 현황 마크다운 문서를 그대로 붙여넣으세요."
+                  style={{
+                    width: "100%", resize: "vertical", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px",
+                    fontSize: 12, lineHeight: 1.6, color: "var(--text)", background: "var(--surface)", fontFamily: "ui-monospace, monospace",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => setImplEditing(false)} style={{ all: "unset", cursor: "pointer", padding: "0 16px", height: 36, borderRadius: 8, border: "1px solid var(--border)", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center" }}>
+                    취소
+                  </button>
+                  <button
+                    onClick={saveImplStatus}
+                    disabled={implSaving}
+                    style={{ all: "unset", cursor: implSaving ? "default" : "pointer", padding: "0 16px", height: 36, borderRadius: 8, background: "var(--gradient)", color: "#fff", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", opacity: implSaving ? 0.6 : 1 }}
+                  >
+                    저장
+                  </button>
+                </div>
+              </div>
+            ) : implStatus?.markdown ? (
+              <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 24, boxSizing: "border-box" }}>
+                <pre style={{ margin: 0, fontSize: 12.5, lineHeight: 1.7, color: "#D7D9E4", whiteSpace: "pre-wrap", fontFamily: "inherit" }}>
+                  {implStatus.markdown}
+                </pre>
+              </div>
+            ) : (
+              <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, boxSizing: "border-box" }}>
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0 }}>
+                  아직 구현 현황 문서가 없어요. Codex 같은 코드 에이전트로 LinkU_Android·LinkU_backend 레포를 탐색해 이 PRD 대비 실제 구현 상태를 정리한 뒤, 결과 마크다운을 여기에 붙여넣으면 팀 전체가 볼 수 있어요.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
