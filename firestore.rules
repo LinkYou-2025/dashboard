@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 팀원 화이트리스트: 문서 ID = Firebase Auth uid.
+    // 팀원이 GitHub으로 한 번 로그인하면 Firebase 콘솔 Authentication > Users에 uid가 나타난다.
+    // 그 uid로 이 컬렉션에 빈 문서를 하나 만들어주면 그 사람만 쓰기 권한을 갖는다.
+    match /members/{uid} {
+      allow read: if true;
+      allow write: if false; // 콘솔에서 관리자가 직접 추가/삭제
+    }
+
+    function isMember() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/members/$(request.auth.uid));
+    }
+
+    // 그 외 모든 데이터: 로그인 여부와 관계없이 누구나 읽기(구경) 가능,
+    // 쓰기는 화이트리스트 팀원만 가능.
+    match /{document=**} {
+      allow read: if true;
+      allow write: if isMember();
+    }
+  }
+}

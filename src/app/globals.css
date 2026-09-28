@@ -1,0 +1,49 @@
+:root {
+  --bg: #0a0c16;
+  --surface: #12141f;
+  --border: #1b1e2e;
+  --text: #ffffff;
+  --text-secondary: #9195ab;
+  --text-tertiary: #565a73;
+  --accent-purple: #c800ff;
+  --accent-blue: #2c6fff;
+  --gradient: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-blue) 100%);
+  --positive: #35df79;
+  --negative: #ff5e5e;
+  --amber: #f5a623;
+}
+
+html {
+  height: 100%;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100%;
+  color: var(--text);
+  background: var(--bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+    "Malgun Gothic", "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}
