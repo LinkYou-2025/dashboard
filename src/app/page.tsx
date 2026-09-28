@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -105,7 +106,7 @@ export default function Home() {
           로그인 없이도 스펙 현황을 볼 수 있습니다. LinkYou-2025 팀원으로
           등록되면 스펙 업로드·승인 등 쓰기 권한이 열립니다.
         </p>
-        <a
+        <Link
           href="/prd"
           style={{
             display: "inline-flex",
@@ -120,7 +121,7 @@ export default function Home() {
           }}
         >
           PRD 문서 보기 →
-        </a>
+        </Link>
       </main>
     </div>
   );

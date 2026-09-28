@@ -15,3 +15,6 @@ export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const githubProvider = new GithubAuthProvider();
+// LinkU_backend가 public repo라 public_repo 스코프만으로 이슈 생성이 가능하다.
+// (org 비공개 레포 전체를 여는 repo 스코프보다 훨씬 좁은 권한)
+githubProvider.addScope("public_repo");
