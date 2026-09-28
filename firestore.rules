@@ -3,12 +3,16 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 팀원 화이트리스트: 문서 ID = Firebase Auth uid.
+    // 팀원 화이트리스트: 문서 ID = Firebase Auth uid, role 필드로 권한 범위를 나눈다.
     // 팀원이 GitHub으로 한 번 로그인하면 Firebase 콘솔 Authentication > Users에 uid가 나타난다.
-    // 그 uid로 이 컬렉션에 빈 문서를 하나 만들어주면 그 사람만 쓰기 권한을 갖는다.
+    // 그 uid로 이 컬렉션에 { role: "기획자" | "프론트" | "백엔드" } 문서를 만들어주면 그 역할의 권한을 갖는다.
     match /members/{uid} {
       allow read: if true;
-      allow write: if false; // 콘솔에서 관리자가 직접 추가/삭제
+      allow write: if false; // 콘솔에서 관리자가 직접 추가/삭제/역할 수정
+    }
+
+    function member() {
+      return get(/databases/$(database)/documents/members/$(request.auth.uid));
     }
 
     function isMember() {
@@ -16,8 +20,32 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/members/$(request.auth.uid));
     }
 
-    // 그 외 모든 데이터: 로그인 여부와 관계없이 누구나 읽기(구경) 가능,
-    // 쓰기는 화이트리스트 팀원만 가능.
+    function hasRole(role) {
+      return isMember() && member().data.role == role;
+    }
+
+    // PRD 문서: 누구나 읽기, 최종 반영(승인)은 기획자만.
+    // 프론트/백엔드도 초안을 올릴 수 있도록 draft 하위 컬렉션은 팀원 전체에게 열어둔다.
+    match /prd/{docId} {
+      allow read: if true;
+      allow write: if hasRole('기획자');
+
+      match /drafts/{draftId} {
+        allow read: if true;
+        allow write: if isMember();
+      }
+    }
+
+    // API 계약 요청 (/contract): 프론트가 작성, 백엔드가 승인/반려.
+    match /contracts/{contractId} {
+      allow read: if true;
+      allow create: if hasRole('프론트') || hasRole('백엔드');
+      allow update: if hasRole('백엔드')
+        || (hasRole('프론트') && request.resource.data.status == 'pending');
+    }
+
+    // 그 외 모든 데이터(스펙 목록, 버전 이력 등): 누구나 읽기(구경) 가능,
+    // 쓰기는 화이트리스트 팀원이면 역할 무관하게 가능.
     match /{document=**} {
       allow read: if true;
       allow write: if isMember();
