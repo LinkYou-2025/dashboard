@@ -101,10 +101,26 @@ export default function Home() {
         <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>
           Spec Center
         </h1>
-        <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
           로그인 없이도 스펙 현황을 볼 수 있습니다. LinkYou-2025 팀원으로
           등록되면 스펙 업로드·승인 등 쓰기 권한이 열립니다.
         </p>
+        <a
+          href="/prd"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 13,
+            fontWeight: 700,
+            padding: "8px 16px",
+            borderRadius: 8,
+            background: "var(--gradient)",
+            color: "#fff",
+          }}
+        >
+          PRD 문서 보기 →
+        </a>
       </main>
     </div>
   );
